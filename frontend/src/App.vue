@@ -40,7 +40,7 @@ function isValidEmail(email) {
 
 async function verifyEmail() {
   try {
-    const res = await fetch('/api/check-email', {
+    const res = await fetch('https://email-verification-app-production-8ea5.up.railway.app/api/check-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.value })
