@@ -24,7 +24,7 @@ app.post('/api/check-email', (req, res) => {
 
     const validEmails = data.split('\n').map(e => e.trim().toLowerCase())
     const isValid = validEmails.includes(email.toLowerCase())
-    res.json({ valid: isValid, message: isValid ? 'Valid email' : 'Email not recognized' })
+    res.json({ valid: isValid, message: isValid ? 'Valid email' : 'Please enter your work email address for verification' })
   })
 })
 
