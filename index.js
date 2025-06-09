@@ -1,21 +1,23 @@
-const express = require('express')
-const cors = require('cors')
-const fs = require('fs')
-const path = require('path')
-const app = express()
+const fetch = require('node-fetch'); // Add at the top if not already
 
-const PORT = process.env.PORT || 3000
-const EMAIL_FILE = path.join(__dirname, 'emails.txt')
-
-app.use(cors())
-app.use(express.json())
-
-app.post('/api/check-email', (req, res) => {
-  const { email } = req.body
-  if (!email) {
-    return res.status(400).json({ valid: false, message: 'No email provided' })
+app.post('/api/check-email', async (req, res) => {
+  const { email, captchaToken } = req.body
+  if (!captchaToken) {
+    return res.status(400).json({ valid: false, message: 'Captcha missing' })
   }
 
+  // Verify with Cloudflare
+  const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `secret=0x4AAAAAABgei31cPHEZ22nHMf0iiF4ScF8&response=${captchaToken}`
+  });
+  const cfData = await cfRes.json();
+  if (!cfData.success) {
+    return res.status(400).json({ valid: false, message: 'Captcha verification failed' });
+  }
+
+  // ...existing email check logic below...
   fs.readFile(EMAIL_FILE, 'utf8', (err, data) => {
     if (err) {
       console.error('Error reading email file:', err)
@@ -26,8 +28,4 @@ app.post('/api/check-email', (req, res) => {
     const isValid = validEmails.includes(email.toLowerCase())
     res.json({ valid: isValid, message: isValid ? 'Valid email' : 'Please enter your work email address for verification' })
   })
-})
-
-app.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`)
 })
