@@ -1,0 +1,5 @@
+
+test@example.com
+john@domain.com
+demo@site.com
+user@allowed.com
