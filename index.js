@@ -1,4 +1,5 @@
-require('express')
+
+const express = require('express')
 const cors = require('cors')
 const fs = require('fs')
 const path = require('path')
@@ -26,7 +27,7 @@ app.post('/api/check-email', async (req, res) => {
     const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: secret=0x4AAAAAABgei31cPHEZ22nHMf0iiF4ScF8&response=${captchaToken},
+      body: `secret=0x4AAAAAABgei31cPHEZ22nHMf0iiF4ScF8&response=${captchaToken}`,
     })
     const verifyData = await verifyRes.json()
     if (!verifyData.success) {
@@ -50,5 +51,5 @@ app.post('/api/check-email', async (req, res) => {
 })
 
 app.listen(PORT, () => {
-  console.log(Backend running on http://localhost:${PORT})
+  console.log(`Backend running on http://localhost:${PORT}`)
 })
