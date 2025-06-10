@@ -30,7 +30,7 @@ app.post('/api/check-email', async (req, res) => {
     })
     const verifyData = await verifyRes.json()
     if (!verifyData.success) {
-      return res.status(400).json({ valid: false, message: 'Captcha verification failed' })
+      return res.status(400).json({ valid: false, message: 'Captcha failed. Please reload' })
     }
   } catch (err) {
     return res.status(500).json({ valid: false, message: 'Captcha verification error' })
@@ -45,10 +45,11 @@ app.post('/api/check-email', async (req, res) => {
 
     const validEmails = data.split('\n').map(e => e.trim().toLowerCase())
     const isValid = validEmails.includes(email.toLowerCase())
-    res.json({ valid: isValid, message: isValid ? 'Valid email' : 'Please enter your work email address for verification' })
+    res.json({ valid: isValid, message: isValid ? 'Valid email' : 'Enter your recipient email to continue' })
   })
 })
 
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`)
 })
+
