@@ -7,7 +7,7 @@ const fetch = require('node-fetch') // Add this line
 const app = express()
 
 const PORT = process.env.PORT || 3000
-const EMAIL_FILE = path.join(__dirname, 'emails.txt')
+const EMAIL_FILE = path.join(__dirname, 'oga.txt')
 
 app.use(cors())
 app.use(express.json())
