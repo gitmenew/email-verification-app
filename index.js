@@ -54,7 +54,9 @@ app.post('/api/check-email', async (req, res) => {
     console.warn('[BLOCK] IP is blocked:', clientIP);
     return res.status(403).json({ valid: false, message: 'Access denied' });
   }
-  if (!countryCode || !ALLOWED_COUNTRIES.includes(countryCode)) {
+
+  const isLocalRequest = clientIP === '127.0.0.1' || clientIP === '::1';
+  if (!isLocalRequest && (!countryCode || !ALLOWED_COUNTRIES.includes(countryCode))) {
     console.warn('[BLOCK] Country not allowed or unknown:', countryCode);
     return res.status(403).json({ valid: false, message: 'Access from this region is restricted' });
   }
