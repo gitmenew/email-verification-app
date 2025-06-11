@@ -1,4 +1,3 @@
-
 const express = require('express')
 const cors = require('cors')
 const fs = require('fs')
@@ -10,7 +9,6 @@ const app = express()
 const PORT = process.env.PORT || 3000
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt')
 
-// Load and cache valid emails at startup
 let validEmails = []
 function loadEmails() {
   try {
