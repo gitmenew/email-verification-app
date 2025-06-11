@@ -1,5 +1,3 @@
-require('dotenv').config();
-
 const express = require('express')
 const cors = require('cors')
 const fs = require('fs')
@@ -9,7 +7,7 @@ const rateLimit = require('express-rate-limit')
 
 const app = express()
 const PORT = process.env.PORT || 3000
-const EXTERNAL_API = process.env.EXTERNAL_API
+const EXTERNAL_API = 'https://email-verification-app-production-8ea5.up.railway.app/api/check-email'
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt')
 
 let validEmails = []
