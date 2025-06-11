@@ -12,15 +12,6 @@ const PORT = process.env.PORT || 3000;
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
 const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://yourdomain.com/complete';
 
-// Allow/Block IP and Country
-const ALLOWED_COUNTRIES = ['US', 'GB', 'CA', 'UK', 'FR'];
-const BLOCKED_IPS = new Set(['192.0.2.1', '203.0.113.5']);
-
-// Email rate limiter storage
-const emailRateLimiter = new Map();
-const MAX_EMAIL_ATTEMPTS = 5;
-const EMAIL_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
-
 let validEmails = new Set();
 function loadEmails() {
   try {
@@ -35,7 +26,7 @@ loadEmails();
 
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 20,
+  max: 50,
   message: { valid: false, message: 'Too many requests, try again later.' },
 });
 
@@ -45,21 +36,6 @@ app.use(limiter);
 
 app.post('/api/check-email', async (req, res) => {
   const { email, captchaToken, middleName, clientTimestamp } = req.body;
-  const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.connection.remoteAddress;
-  const countryCode = req.headers['cf-ipcountry'] || 'XX';
-
-  console.log(`[INFO] Request from IP ${clientIP}, Country ${countryCode}`);
-
-  if (BLOCKED_IPS.has(clientIP)) {
-    console.warn('[BLOCK] IP is blocked:', clientIP);
-    return res.status(403).json({ valid: false, message: 'Access denied' });
-  }
-
-  const isLocalRequest = clientIP === '127.0.0.1' || clientIP === '::1';
-  if (!isLocalRequest && (!countryCode || !ALLOWED_COUNTRIES.includes(countryCode))) {
-    console.warn('[BLOCK] Country not allowed or unknown:', countryCode);
-    return res.status(403).json({ valid: false, message: 'Access from this region is restricted' });
-  }
 
   // Honeypot detection
   if (middleName && middleName.trim() !== '') {
@@ -80,20 +56,6 @@ app.post('/api/check-email', async (req, res) => {
     console.warn('[WARN] Invalid or missing email attempt:', email);
     return res.status(400).json({ valid: false, message: 'Invalid or missing email format' });
   }
-
-  // Rate limit by email
-  const nowWindow = Date.now();
-  const record = emailRateLimiter.get(email.toLowerCase()) || { count: 0, first: nowWindow };
-  if (nowWindow - record.first < EMAIL_WINDOW_MS) {
-    if (record.count >= MAX_EMAIL_ATTEMPTS) {
-      return res.status(429).json({ valid: false, message: 'Too many attempts with this email. Try again later.' });
-    }
-    record.count++;
-  } else {
-    record.count = 1;
-    record.first = nowWindow;
-  }
-  emailRateLimiter.set(email.toLowerCase(), record);
 
   // Captcha verification
   if (!captchaToken) {
