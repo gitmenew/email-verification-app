@@ -10,13 +10,12 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
-const CLOUDFLARE_SECRET = process.env.CLOUDFLARE_SECRET;
 
-let validEmails = [];
+let validEmails = new Set();
 function loadEmails() {
   try {
     const data = fs.readFileSync(EMAIL_FILE, 'utf8');
-    validEmails = data.split('\n').map(e => e.trim().toLowerCase());
+    validEmails = new Set(data.split('\n').map(e => e.trim().toLowerCase()));
     console.log('[INFO] Email list loaded into memory');
   } catch (err) {
     console.error('[ERROR] Failed to read email list:', err);
@@ -26,7 +25,7 @@ loadEmails();
 
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 50, // feel free to adjust as needed
+  max: 50,
   message: { valid: false, message: 'Too many requests, try again later.' },
 });
 
@@ -37,7 +36,6 @@ app.use(limiter);
 app.post('/api/check-email', async (req, res) => {
   const { email, captchaToken, middleName } = req.body;
 
-  // Honeypot anti-bot trap
   if (middleName && middleName.trim() !== '') {
     console.warn('[BOT] Honeypot field triggered');
     return res.status(403).json({ valid: false, message: 'Bot activity detected' });
@@ -53,12 +51,11 @@ app.post('/api/check-email', async (req, res) => {
     return res.status(400).json({ valid: false, message: 'Captcha missing' });
   }
 
-  // Cloudflare CAPTCHA verification
   try {
     const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${CLOUDFLARE_SECRET}&response=${captchaToken}`,
+      body: `secret=${process.env.CLOUDFLARE_SECRET}&response=${captchaToken}`,
     });
     const verifyData = await verifyRes.json();
     if (!verifyData.success) {
@@ -70,7 +67,7 @@ app.post('/api/check-email', async (req, res) => {
     return res.status(500).json({ valid: false, message: 'Captcha verification error' });
   }
 
-  const isValid = validEmails.includes(email.toLowerCase());
+  const isValid = validEmails.has(email.toLowerCase());
   console.log(`[INFO] Email verification result for ${email}: ${isValid}`);
   res.json({ valid: isValid, message: isValid ? 'Valid email' : 'Enter the valid recipient email to continue' });
 });
