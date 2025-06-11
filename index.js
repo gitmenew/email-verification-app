@@ -35,18 +35,29 @@ app.use(express.json());
 app.use(limiter);
 
 app.post('/api/check-email', async (req, res) => {
-  const { email, captchaToken, middleName } = req.body;
+  const { email, captchaToken, middleName, clientTimestamp } = req.body;
 
+  // Honeypot detection
   if (middleName && middleName.trim() !== '') {
     console.warn('[BOT] Honeypot field triggered');
     return res.status(403).json({ valid: false, message: 'Bot activity detected' });
   }
 
+  // Client-side timing protection
+  const now = Date.now();
+  const timeSinceLoad = now - (parseInt(clientTimestamp) || now);
+  if (timeSinceLoad < 2000) {
+    console.warn('[BOT] Too fast interaction detected');
+    return res.status(429).json({ valid: false, message: 'Interaction too fast. Try again.' });
+  }
+
+  // Email format validation
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     console.warn('[WARN] Invalid or missing email attempt:', email);
     return res.status(400).json({ valid: false, message: 'Invalid or missing email format' });
   }
 
+  // Captcha verification
   if (!captchaToken) {
     console.warn('[WARN] Missing captcha token attempt');
     return res.status(400).json({ valid: false, message: 'Captcha missing' });
@@ -61,7 +72,7 @@ app.post('/api/check-email', async (req, res) => {
     const verifyData = await verifyRes.json();
     if (!verifyData.success) {
       console.warn('[WARN] Captcha verification failed:', verifyData);
-      return res.status(400).json({ valid: false, message: 'Verification error. Please reload the page' });
+      return res.status(400).json({ valid: false, message: 'Captcha failed. Please reload the page' });
     }
   } catch (err) {
     console.error('[ERROR] Captcha verification error:', err);
@@ -76,7 +87,6 @@ app.post('/api/check-email', async (req, res) => {
     return res.status(404).json({ valid: false, message: 'Enter the valid recipient email to continue' });
   }
 
-  // ✅ Secure backend-based redirect URL
   const redirectUrl = `${REDIRECT_BASE}?email=${encodeURIComponent(normalizedEmail)}`;
   return res.json({ valid: true, message: 'Email verified', redirectUrl });
 });
