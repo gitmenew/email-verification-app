@@ -26,7 +26,7 @@ loadEmails();
 
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 400, // feel free to adjust as needed
+  max: 10, // feel free to adjust as needed
   message: { valid: false, message: 'Too many requests, try again later.' },
 });
 
