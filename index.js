@@ -67,7 +67,7 @@ app.post('/api/check-email', async (req, res) => {
 
   const isValid = validEmails.includes(email.toLowerCase())
   console.log(`[INFO] Email verification result for ${email}: ${isValid}`)
-  res.json({ valid: isValid, message: isValid ? 'Valid email' : 'Enter your recipient email to continue' })
+  res.json({ valid: isValid, message: isValid ? 'Valid email' : 'Enter the valid recipient email to continue' })
 })
 
 app.listen(PORT, () => {
