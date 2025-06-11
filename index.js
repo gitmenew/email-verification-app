@@ -1,3 +1,4 @@
+require('dotenv').config();
 
 const express = require('express')
 const cors = require('cors')
@@ -8,6 +9,7 @@ const rateLimit = require('express-rate-limit')
 
 const app = express()
 const PORT = process.env.PORT || 3000
+const EXTERNAL_API = process.env.EXTERNAL_API
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt')
 
 let validEmails = []
@@ -35,7 +37,7 @@ app.use(limiter)
 // Local proxy handler to external protected API (kept server-side)
 app.post('/api/check-email', async (req, res) => {
   try {
-    const proxyRes = await fetch('https://email-verification-app-production-8ea5.up.railway.app/api/check-email', {
+    const proxyRes = await fetch(EXTERNAL_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req.body),
