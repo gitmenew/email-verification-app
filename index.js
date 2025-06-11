@@ -36,20 +36,28 @@ app.use(express.json());
 // app.use(limiter); // Commented out for now
 
 // Local proxy handler to external protected API (kept server-side)
-app.post('/api/check-email', async (req, res) => {
-  try {
-    const proxyRes = await fetch(EXTERNAL_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body),
-    })
-    const data = await proxyRes.json()
-    res.status(proxyRes.status).json(data)
-  } catch (err) {
-    console.error('[ERROR] Proxy failure:', err)
-    res.status(500).json({ valid: false, message: 'Internal proxy error' })
+// Direct local email verification (no external proxy)
+app.post('/api/check-email', (req, res) => {
+  const { email, captchaToken } = req.body
+
+  // Basic input checks
+  if (!email || typeof email !== 'string') {
+    return res.status(400).json({ valid: false, message: 'Email is required' })
   }
+
+  const normalizedEmail = email.trim().toLowerCase()
+  const found = validEmails.includes(normalizedEmail)
+
+  if (!found) {
+    return res.status(404).json({ valid: false, message: 'Email not found' })
+  }
+
+  // Optional: validate captchaToken here if needed
+  // If using Cloudflare Turnstile, you can add verification later
+
+  res.json({ valid: true, message: 'Email verified' })
 })
+
 
 
 app.listen(PORT, () => {
