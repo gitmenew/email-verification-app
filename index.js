@@ -34,18 +34,23 @@ app.use(express.json())
 app.use(limiter)
 
 app.post('/api/check-email', async (req, res) => {
-  const { email, captchaToken } = req.body
+  const { email, captchaToken, middleName } = req.body
+
+  if (middleName && middleName.trim() !== '') {
+    console.warn('[BOT] Honeypot field triggered')
+    return res.status(403).json({ valid: false, message: 'Bot activity detected' })
+  }
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     console.warn('[WARN] Invalid or missing email attempt:', email)
     return res.status(400).json({ valid: false, message: 'Invalid or missing email format' })
   }
+
   if (!captchaToken) {
     console.warn('[WARN] Missing captcha token attempt')
     return res.status(400).json({ valid: false, message: 'Captcha missing' })
   }
 
-  // Verify captcha with Cloudflare
   try {
     const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
