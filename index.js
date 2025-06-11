@@ -34,18 +34,21 @@ app.use(cors());
 app.use(express.json());
 app.use(limiter);
 
-// API route to validate email and return obfuscated redirect
+// ✅ Email check route (used by frontend)
 app.post('/api/check-email', async (req, res) => {
   const { email, captchaToken, middleName } = req.body;
 
+  // Bot detection
   if (middleName && middleName.trim() !== '') {
     return res.status(403).json({ valid: false, message: 'Bot activity detected' });
   }
 
+  // Basic format check
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ valid: false, message: 'Invalid email format' });
   }
 
+  // CAPTCHA check
   if (!captchaToken) {
     return res.status(400).json({ valid: false, message: 'Captcha missing' });
   }
@@ -75,7 +78,7 @@ app.post('/api/check-email', async (req, res) => {
   return res.json({ valid: true, redirectUrl });
 });
 
-// 🔐 Route to decode and forward obfuscated URL
+// ✅ Obfuscated redirection route
 app.get('/forward', (req, res) => {
   try {
     const { data } = req.query;
