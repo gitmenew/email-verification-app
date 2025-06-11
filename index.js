@@ -1,3 +1,4 @@
+
 const express = require('express')
 const cors = require('cors')
 const fs = require('fs')
@@ -22,7 +23,6 @@ function loadEmails() {
 }
 loadEmails()
 
-// Basic rate limiting
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
