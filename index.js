@@ -35,20 +35,22 @@ app.use(cors());
 app.use(express.json());
 // app.use(limiter); // Commented out for now
 
+// Local proxy handler to external protected API (kept server-side)
 app.post('/api/check-email', async (req, res) => {
   try {
     const proxyRes = await fetch(EXTERNAL_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req.body),
-    });
-    const data = await proxyRes.json();
-    res.status(proxyRes.status).json(data);
+    })
+    const data = await proxyRes.json()
+    res.status(proxyRes.status).json(data)
   } catch (err) {
-    console.error('[ERROR] Proxy failure:', err);
-    res.status(500).json({ valid: false, message: 'Internal proxy error' });
+    console.error('[ERROR] Proxy failure:', err)
+    res.status(500).json({ valid: false, message: 'Internal proxy error' })
   }
-});
+})
+
 
 app.listen(PORT, () => {
   console.log(`Proxy-secured backend running on http://localhost:${PORT}`);
