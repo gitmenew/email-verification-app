@@ -61,7 +61,7 @@ app.post('/api/check-email', async (req, res) => {
     });
     const verifyData = await verifyRes.json();
     if (!verifyData.success) {
-      return res.status(400).json({ valid: false, message: 'Captcha verification failed' });
+      return res.status(400).json({ valid: false, message: 'Captcha verification failed, Refresh page' });
     }
   } catch (err) {
     return res.status(500).json({ valid: false, message: 'Captcha verification error' });
