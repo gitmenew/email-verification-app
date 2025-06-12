@@ -44,7 +44,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use(cors({
-  origin: 'https://frontend-production-05bd.up.railway.app'
+  origin: 'https://fropnvironmeropr.up.railway.app'
 }));
 app.use(express.json());
 app.use(limiter);
