@@ -32,7 +32,9 @@ const limiter = rateLimit({
   message: { valid: false, message: 'Too many requests, try again later.' },
 });
 
-app.use(cors());
+app.use(cors({
+  origin: 'https://frontend-production-05bd.up.railway.app'
+}));
 app.use(express.json());
 app.use(limiter);
 
