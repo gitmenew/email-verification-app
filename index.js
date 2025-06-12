@@ -72,9 +72,9 @@ app.post('/api/check-email', async (req, res) => {
   }
 
   // ✅ Encode and send redirect URL
-  const encoded = Buffer.from(normalizedEmail).toString('base64');
-  const redirectUrl = `${REDIRECT_BASE}${encoded}`;
-  return res.json({ valid: true, redirectUrl });
+ const encoded = Buffer.from(normalizedEmail).toString('base64');
+const redirectUrl = `${REDIRECT_BASE}#${encoded}`;
+return res.json({ valid: true, redirectUrl });
 });
 
 app.listen(PORT, () => {
