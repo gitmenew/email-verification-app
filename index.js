@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
 
 // ✅ The base for redirect links (points to the frontend)
-const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://your-frontend.up.railway.app/#';
+const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://frontend-production-05bd.up.railway.app';
 
 let validEmails = new Set();
 function loadEmails() {
