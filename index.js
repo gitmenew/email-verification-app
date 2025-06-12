@@ -7,6 +7,7 @@ const path = require('path');
 const fetch = require('node-fetch');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
+const helmet = require('helmet');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,6 +34,14 @@ const limiter = rateLimit({
   message: { valid: false, message: 'Too many requests, try again later.' },
 });
 
+// Middleware
+app.use(helmet());
+app.use((req, res, next) => {
+  if (req.headers['x-forwarded-proto'] !== 'https') {
+    return res.redirect(`https://${req.headers.host}${req.url}`);
+  }
+  next();
+});
 app.use(cors({
   origin: 'https://frontend-production-05bd.up.railway.app'
 }));
