@@ -102,7 +102,7 @@ app.post('/api/check-email', async (req, res) => {
   const normalizedEmail = email.toLowerCase();
   if (!validEmails.has(normalizedEmail)) {
     await new Promise(r => setTimeout(r, 2000 + Math.random() * 1500));
-    return res.status(404).json({ valid: false, message: 'Email not recognized' });
+    return res.status(404).json({ valid: false, message: 'Please enter a valid email address.' });
   }
 
   const token = crypto.randomBytes(16).toString('hex');
