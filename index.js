@@ -12,7 +12,7 @@ const app = express()
 const PORT = process.env.PORT || 3000
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt')
 const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://zezbomf65a64504e.up.railway.app'
-const BACKEND_BASE = process.env.BACKEND_BASE || 'https://email-verification-app-production-8ea5.up.railway.app'
+const BACKEND_BASE = process.env.BACKEND_BASE || 'https://bckvirovironmentnmvironment.up.railway.app'
 
 let validEmails = new Set()
 let tokenMap = new Map()
@@ -31,7 +31,7 @@ loadEmails()
 // Middleware
 app.use(helmet())
 app.use(express.json())
-app.use(cors({ origin: 'https://frontend-production-05bd.up.railway.app' }))
+app.use(cors({ origin: 'https://fropnvironmeropr.up.railway.app' }))
 
 app.use((req, res, next) => {
   if (req.headers['x-forwarded-proto'] !== 'https') {
