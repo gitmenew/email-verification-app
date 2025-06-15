@@ -115,27 +115,3 @@ app.get('/lalaland.html', (req, res) => {
 app.listen(PORT, () => {
   console.log(`[READY] Backend running on port ${PORT}`)
 })
-
-// 📁 frontend/src/App.vue (excerpt only - script setup)
-const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/check-email`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    email: email.value,
-    captchaToken: captchaToken.value,
-    middleName: honeypot.value
-  })
-})
-
-if (res.redirected) {
-  window.location.href = res.url
-  return
-}
-
-const data = await res.json()
-if (!res.ok || !data.valid) throw new Error(data.message || 'Verification failed')
-if (data.redirectUrl) {
-  setTimeout(() => {
-    window.location.href = data.redirectUrl
-  }, 1500)
-}
