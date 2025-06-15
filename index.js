@@ -126,8 +126,6 @@ app.get('/forward', (req, res) => {
   res.redirect(`${REDIRECT_BASE}/#${entry.email}`)
 })
 
-})
-
 app.get('/lalaland.html', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/public/lalaland.html'))
 })
