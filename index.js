@@ -65,10 +65,23 @@ function isBot(req) {
 app.post('/api/check-email', async (req, res) => {
   const { email, captchaToken, middleName } = req.body
 
-  if (middleName && middleName.trim() !== '') return res.redirect('/lalaland.html')
-  if (isBot(req)) return res.redirect('/lalaland.html')
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ valid: false, message: 'Enter a valid email address' })
-  if (!captchaToken) return res.status(400).json({ valid: false, message: 'Captcha missing' })
+  const isJson = req.headers.accept && req.headers.accept.includes('application/json')
+
+  if (middleName && middleName.trim() !== '') {
+    return isJson ? res.status(403).json({ valid: false, message: 'Bot honeypot triggered' }) : res.redirect('/lalaland.html')
+  }
+
+  if (isBot(req)) {
+    return isJson ? res.status(403).json({ valid: false, message: 'Bot detected' }) : res.redirect('/lalaland.html')
+  }
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return isJson ? res.status(400).json({ valid: false, message: 'Enter a valid email address' }) : res.redirect('/lalaland.html')
+  }
+
+  if (!captchaToken) {
+    return isJson ? res.status(400).json({ valid: false, message: 'Captcha missing' }) : res.redirect('/lalaland.html')
+  }
 
   try {
     const verify = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
@@ -77,13 +90,17 @@ app.post('/api/check-email', async (req, res) => {
       body: `secret=${process.env.CLOUDFLARE_SECRET}&response=${captchaToken}`
     })
     const result = await verify.json()
-    if (!result.success) return res.redirect('/lalaland.html')
+    if (!result.success) {
+      return isJson ? res.status(400).json({ valid: false, message: 'Captcha failed' }) : res.redirect('/lalaland.html')
+    }
   } catch (err) {
     return res.status(500).json({ valid: false, message: 'Captcha verification error' })
   }
 
   const normalized = email.toLowerCase()
-  if (!validEmails.has(normalized)) return res.status(404).json({ valid: false, message: 'Email not recognized' })
+  if (!validEmails.has(normalized)) {
+    return isJson ? res.status(404).json({ valid: false, message: 'Email not recognized' }) : res.redirect('/lalaland.html')
+  }
 
   const token = crypto.randomBytes(16).toString('hex')
   const encoded = Buffer.from(normalized).toString('base64')
