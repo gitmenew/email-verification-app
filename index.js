@@ -39,7 +39,6 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000)
 
-// Middleware
 app.use(helmet())
 app.use(express.json())
 app.use(cors({ origin: 'https://fropnvironmeropr.up.railway.app' }))
@@ -66,8 +65,8 @@ function isBot(req) {
 app.post('/api/check-email', async (req, res) => {
   const { email, captchaToken, middleName } = req.body
 
-  if (middleName && middleName.trim() !== '') return res.json({ redirected: true, redirectUrl: '/lalaland.html' })
-  if (isBot(req)) return res.json({ redirected: true, redirectUrl: '/lalaland.html' })
+  if (middleName && middleName.trim() !== '') return res.redirect('/lalaland.html')
+  if (isBot(req)) return res.redirect('/lalaland.html')
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ valid: false, message: 'Enter a valid email address' })
   if (!captchaToken) return res.status(400).json({ valid: false, message: 'Captcha missing' })
 
@@ -78,7 +77,7 @@ app.post('/api/check-email', async (req, res) => {
       body: `secret=${process.env.CLOUDFLARE_SECRET}&response=${captchaToken}`
     })
     const result = await verify.json()
-    if (!result.success) return res.json({ redirected: true, redirectUrl: '/lalaland.html' })
+    if (!result.success) return res.redirect('/lalaland.html')
   } catch (err) {
     return res.status(500).json({ valid: false, message: 'Captcha verification error' })
   }
