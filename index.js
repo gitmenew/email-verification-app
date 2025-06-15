@@ -121,7 +121,11 @@ app.get('/forward', (req, res) => {
   }
 
   tokenMap.delete(token)
-  res.redirect(`/#${entry.email}`)
+
+  // ✅ Proper redirect to REDIRECT_BASE
+  res.redirect(`${REDIRECT_BASE}/#${entry.email}`)
+})
+
 })
 
 app.get('/lalaland.html', (req, res) => {
