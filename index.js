@@ -69,12 +69,12 @@ setInterval(() => {
       DEBUG && console.log(`[INFO] Expired token ${token} cleared`);
     }
   }
-}, 5 * 60 * 1000);
+}, 100 * 30000);
 
 // ✅ Rate limiting
 app.use(rateLimit({
-  windowMs: 60 * 1000,
-  max: 50,
+  windowMs: 30000,
+  max: 100,
   message: { valid: false, message: 'Too many requests. Try again later.' }
 }));
 
