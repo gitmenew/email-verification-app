@@ -34,7 +34,7 @@ app.use((req, res, next) => {
 // ✅ Middleware
 app.use(helmet());
 app.use(express.json());
-app.use(cors({ origin: 'https://fropnvironmeropr.up.railway.app' }));
+app.use(cors({ origin: 'https://workteamshareseervices.info' }));
 
 // ✅ Force HTTPS
 app.use((req, res, next) => {
