@@ -69,13 +69,15 @@ setInterval(() => {
       DEBUG && console.log(`[INFO] Expired token ${token} cleared`);
     }
   }
-}, 100 * 30000);
+}, 5 * 60 * 1000); // 5 minutes
 
-// ✅ Rate limiting
+// ✅ Rate limiting (increased capacity + strategy)
 app.use(rateLimit({
-  windowMs: 30000,
-  max: 100,
-  message: { valid: false, message: 'Too many requests. Try again later.' }
+  windowMs: 60 * 1000, // 1 minute
+  max: 800, // increased to 800 requests per minute
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { valid: false, message: 'Too many requests. Please wait a moment.' }
 }));
 
 // ✅ Email + CAPTCHA endpoint
@@ -101,7 +103,9 @@ app.post('/api/check-email', async (req, res) => {
       body: `secret=${process.env.CLOUDFLARE_SECRET}&response=${captchaToken}`
     });
     const result = await verify.json();
+    console.log('[CAPTCHA RESULT]', result);
     if (!result.success) {
+      console.log('[CAPTCHA ERROR]', result['error-codes']);
       return res.status(400).json({ valid: false, message: 'Captcha failed. Reload page' });
     }
   } catch (err) {
